@@ -1,1 +1,0 @@
-"""Draws Revision Cloud around selected elements"""
