@@ -8,7 +8,7 @@ uidoc = revit.uidoc
 active_view = doc.ActiveView
 output = script.get_output()
 
-PADDING = 0.25  # feet of padding around elements
+PADDING = 0.25 / 12.0  # 0.25 inches in feet
 
 
 # ---------------------------------------------------------------------------
