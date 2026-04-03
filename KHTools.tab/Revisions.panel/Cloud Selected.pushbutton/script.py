@@ -211,5 +211,3 @@ for i in range(len(hull)):
 with revit.Transaction("Create Revision Cloud"):
     cloud = DB.RevisionCloud.Create(doc, active_view,
                                     revision_id, curves)
-
-print("Revision cloud created around {} elements.".format(len(elements)))
