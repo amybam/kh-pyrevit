@@ -122,18 +122,6 @@ def offset_polygon(hull, distance):
     return offset_pts
 
 
-def build_curve_loop(hull_2d):
-    """Build a Revit CurveLoop from 2D hull points."""
-    curve_loop = DB.CurveLoop()
-    n = len(hull_2d)
-    for i in range(n):
-        x1, y1 = hull_2d[i]
-        x2, y2 = hull_2d[(i + 1) % n]
-        p1 = DB.XYZ(x1, y1, 0.0)
-        p2 = DB.XYZ(x2, y2, 0.0)
-        curve_loop.Append(DB.Line.CreateBound(p1, p2))
-    return curve_loop
-
 
 # ---------------------------------------------------------------------------
 # Main
@@ -167,14 +155,18 @@ if len(hull) < 3:
             (max_x, max_y), (min_x, max_y)]
 
 hull = offset_polygon(hull, PADDING)
-curve_loop = build_curve_loop(hull)
 
 from System.Collections.Generic import List
-loops = List[DB.CurveLoop]()
-loops.Add(curve_loop)
+curves = List[DB.Curve]()
+for i in range(len(hull)):
+    x1, y1 = hull[i]
+    x2, y2 = hull[(i + 1) % len(hull)]
+    p1 = DB.XYZ(x1, y1, 0.0)
+    p2 = DB.XYZ(x2, y2, 0.0)
+    curves.Add(DB.Line.CreateBound(p1, p2))
 
 with revit.Transaction("Create Revision Cloud"):
     cloud = DB.RevisionCloud.Create(doc, active_view,
-                                    revision_id, loops)
+                                    revision_id, curves)
 
 print("Revision cloud created around {} elements.".format(len(elements)))
