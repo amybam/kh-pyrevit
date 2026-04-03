@@ -8,7 +8,10 @@ uidoc = revit.uidoc
 active_view = doc.ActiveView
 output = script.get_output()
 
-PADDING = 0.25  # feet of padding around elements
+PADDING_VIEW = 0.25  # feet (3 inches) for model views
+PADDING_SHEET = 0.25 / 12.0  # feet (0.25 inches) for sheets
+
+PADDING = PADDING_SHEET if isinstance(active_view, DB.ViewSheet) else PADDING_VIEW
 
 
 # ---------------------------------------------------------------------------
