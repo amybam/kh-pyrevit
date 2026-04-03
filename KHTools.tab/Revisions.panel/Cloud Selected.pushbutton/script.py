@@ -109,8 +109,8 @@ def offset_polygon(hull, distance):
                 return (0.0, 0.0)
             return (v[0] / length, v[1] / length)
 
-        n1 = normalize((e1[1], -e1[0]))
-        n2 = normalize((e2[1], -e2[0]))
+        n1 = normalize((-e1[1], e1[0]))
+        n2 = normalize((-e2[1], e2[0]))
 
         # Average normal at vertex
         avg = normalize((n1[0] + n2[0], n1[1] + n2[1]))
@@ -154,6 +154,7 @@ if len(hull) < 3:
     hull = [(min_x, min_y), (max_x, min_y),
             (max_x, max_y), (min_x, max_y)]
 
+hull.reverse()  # CW winding so revision cloud bumps face outward
 hull = offset_polygon(hull, PADDING)
 
 from System.Collections.Generic import List
