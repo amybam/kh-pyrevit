@@ -8,7 +8,7 @@ uidoc = revit.uidoc
 active_view = doc.ActiveView
 output = script.get_output()
 
-PADDING = 0.5  # feet of padding around elements
+PADDING = 0.25  # feet of padding around elements
 
 
 # ---------------------------------------------------------------------------
@@ -33,24 +33,63 @@ def get_latest_revision():
     )
     if not revisions:
         return None
-    # Revisions are ordered by sequence number; pick the last one
     return sorted(revisions, key=lambda r: r.SequenceNumber)[-1].Id
 
 
-def collect_bbox_corners(elements, view):
-    """Collect 2D (X, Y) corners from bounding boxes of all elements."""
-    points = []
+def _points_from_geom(geom_elem):
+    """Recursively extract 2D points from geometry elements."""
+    pts = []
+    for geom_obj in geom_elem:
+        if isinstance(geom_obj, DB.GeometryInstance):
+            pts.extend(_points_from_geom(geom_obj.GetInstanceGeometry()))
+        elif isinstance(geom_obj, DB.Solid):
+            for edge in geom_obj.Edges:
+                curve = edge.AsCurve()
+                pts.append((curve.GetEndPoint(0).X, curve.GetEndPoint(0).Y))
+                pts.append((curve.GetEndPoint(1).X, curve.GetEndPoint(1).Y))
+        elif isinstance(geom_obj, DB.Curve):
+            pts.append((geom_obj.GetEndPoint(0).X, geom_obj.GetEndPoint(0).Y))
+            pts.append((geom_obj.GetEndPoint(1).X, geom_obj.GetEndPoint(1).Y))
+        elif isinstance(geom_obj, DB.Line):
+            pts.append((geom_obj.GetEndPoint(0).X, geom_obj.GetEndPoint(0).Y))
+            pts.append((geom_obj.GetEndPoint(1).X, geom_obj.GetEndPoint(1).Y))
+        elif isinstance(geom_obj, DB.PolyLine):
+            for coord in geom_obj.GetCoordinates():
+                pts.append((coord.X, coord.Y))
+    return pts
+
+
+def collect_geometry_points(elements, view):
+    """Extract 2D points from actual visible geometry of elements.
+
+    Uses view-specific geometry for tight bounds. Falls back to
+    bounding box corners if geometry extraction yields nothing.
+    """
+    opts = DB.Options()
+    opts.View = view
+    opts.ComputeReferences = False
+
+    all_points = []
     for elem in elements:
-        bb = elem.get_BoundingBox(view)
-        if bb is None:
-            continue
-        min_pt = bb.Min
-        max_pt = bb.Max
-        points.append((min_pt.X, min_pt.Y))
-        points.append((max_pt.X, min_pt.Y))
-        points.append((max_pt.X, max_pt.Y))
-        points.append((min_pt.X, max_pt.Y))
-    return points
+        elem_pts = []
+        try:
+            geom = elem.get_Geometry(opts)
+            if geom:
+                elem_pts = _points_from_geom(geom)
+        except Exception:
+            pass
+
+        # Fall back to bounding box if geometry extraction failed
+        if not elem_pts:
+            bb = elem.get_BoundingBox(view)
+            if bb:
+                min_pt, max_pt = bb.Min, bb.Max
+                elem_pts = [
+                    (min_pt.X, min_pt.Y), (max_pt.X, min_pt.Y),
+                    (max_pt.X, max_pt.Y), (min_pt.X, max_pt.Y),
+                ]
+        all_points.extend(elem_pts)
+    return all_points
 
 
 def cross(o, a, b):
@@ -138,9 +177,9 @@ if not revision_id:
                 "Please add a revision first.",
                 exitscript=True)
 
-corners = collect_bbox_corners(elements, active_view)
+corners = collect_geometry_points(elements, active_view)
 if not corners:
-    forms.alert("Could not get bounding boxes for the selected elements.",
+    forms.alert("Could not get geometry for the selected elements.",
                 exitscript=True)
 
 hull = convex_hull(corners)
