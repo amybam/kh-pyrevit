@@ -174,7 +174,7 @@ loops = List[DB.CurveLoop]()
 loops.Add(curve_loop)
 
 with revit.Transaction("Create Revision Cloud"):
-    cloud = DB.RevisionCloud.Create(doc, active_view.Id,
+    cloud = DB.RevisionCloud.Create(doc, active_view,
                                     revision_id, loops)
 
 print("Revision cloud created around {} elements.".format(len(elements)))
